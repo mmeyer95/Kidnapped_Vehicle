@@ -41,6 +41,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   //sample n particles at Gaussian distribution for first position
   for (int i = 0; i < num_particles; ++i) {
     struct Particle p_temp; 
+    p_temp.id = i;
     p_temp.x = dist_x(gen);
     p_temp.y = dist_y(gen);
     p_temp.theta = dist_theta(gen);   
@@ -65,11 +66,15 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
     std::normal_distribution<double> dist_theta_pos(theta, std_pos[2]);
     //update x, y, and theta
 	for (i in range(num_particles)){
-      particles[i].x += velocity/yaw_rate*(sin(particles[i].theta+yaw_rate*delta_t)-sin(particles[i].theta));
-      particles[i].x += dist_x_pos(gen); //add noise
+      if(fabs(yaw_rate) < 0.00001) {  
+		particles[i].x += velocity * delta_t * cos(particles[i].theta);
+		particles[i].y += velocity * delta_t * sin(particles[i].theta);
+	  }
+      else {particles[i].x += velocity/yaw_rate*(sin(particles[i].theta+yaw_rate*delta_t)-sin(particles[i].theta));
       particles[i].y += velocity/yaw_rate*(cos(particles[i].theta)-cos(particles[i].theta+yaw_rate*delta_t))
-      particles[i].y += dist_y_pos(gen); //add noise
-      particles[i].theta += yaw_rate*delta_t;
+      }
+      particles[i].theta += yaw_rate*delta_t;particles[i].y += dist_y_pos(gen); //add noise
+	  particles[i].x += dist_x_pos(gen); //add noise
       particles[i].theta += dist_theta_pos(gen); //add noise
     }
   
@@ -114,7 +119,14 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   and the following is a good resource for the actual equation to implement
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
-
+  for (i in range(num_particles)){
+  //FIRST: complete the transformation
+  double delta_theta = particles[i].theta - ;//car coordinate system?
+  x_m = particles[i].x + (cos(particles[i].theta)*x_car) - (sin(particles[i].theta)*y_car);
+  y_m = particles[i].y + (sin(particles[i].theta)*x_car) + (cos(particles[i].theta)*y_car);
+  //NEXT: apply multi-variate gaussian distribution
+  particles[i].weight = 1/(2*pi*STDX*STDY)*
+  }
 }
 
 void ParticleFilter::resample() {
@@ -124,6 +136,7 @@ void ParticleFilter::resample() {
    * NOTE: You may find std::discrete_distribution helpful here.
    *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
    */
+  std::discrete_distribution disc;
 
 }
 
