@@ -30,8 +30,8 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
    * NOTE: Consult particle_filter.h for more information about this method 
    *   (and others in this file).
    */
-  num_particles = 1000; 
-  std::vector<double> p;
+  num_particles = 100; 
+  particles = [];
   std::default_random_engine gen;
   //create normal distributions to sample from
   std::normal_distribution<double> dist_x(x, std[0]);
@@ -45,7 +45,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
     p_temp.y = dist_y(gen);
     p_temp.theta = dist_theta(gen);   
     p_temp.weight = 1;
-    p.push_back(p_temp);
+    particles.push_back(p_temp);
 }
 }
 
@@ -65,12 +65,12 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
     std::normal_distribution<double> dist_theta_pos(theta, std_pos[2]);
     //update x, y, and theta
 	for (i in range(num_particles)){
-      p[i].x += velocity/yaw_rate*(sin(p[i].theta+yaw_rate*delta_t)-sin(p[i].theta));
-      p[i].x += dist_x_pos(gen); //add noise
-      p[i].y += velocity/yaw_rate*(cos(p[i].theta)-cos(p[i].theta+yaw_rate*delta_t))
-      p[i].y += dist_y_pos(gen); //add noise
-      p[i].theta += yaw_rate*delta_t;
-      p[i].theta += dist_theta_pos(gen); //add noise
+      particles[i].x += velocity/yaw_rate*(sin(particles[i].theta+yaw_rate*delta_t)-sin(particles[i].theta));
+      particles[i].x += dist_x_pos(gen); //add noise
+      particles[i].y += velocity/yaw_rate*(cos(particles[i].theta)-cos(particles[i].theta+yaw_rate*delta_t))
+      particles[i].y += dist_y_pos(gen); //add noise
+      particles[i].theta += yaw_rate*delta_t;
+      particles[i].theta += dist_theta_pos(gen); //add noise
     }
   
   
@@ -86,6 +86,15 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   probably find it useful to implement this method and use it as a helper 
    *   during the updateWeights phase.
    */
+  for (int i=0; i in range len(observations);i++){
+    for (int j=0; j in range len(predicted); j++){
+      double min = 100000000;
+      int index = 0;
+      double dist = sqrt(pow(observations[0]-predicted[0],2)+pow(observations[1]-predicted[1],2));
+      if (dist < max){ min=dist; index=j;}   
+    }
+  	predicted[index]=observations[i];
+  }
 
 }
 
