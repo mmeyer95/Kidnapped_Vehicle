@@ -42,10 +42,10 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 
 /** Prediction step**/
 	std::default_random_engine gen;
-	//Create normal distributions for each measurement
-	std::normal_distribution<double> dist_x_pos(x, std_pos[0]);
-	std::normal_distribution<double> dist_y_pos(y, std_pos[1]);
-	std::normal_distribution<double> dist_theta_pos(theta, std_pos[2]);
+	//Create normal distributions for position noise
+	std::normal_distribution<double> dist_x_pos(0, std_pos[0]);
+	std::normal_distribution<double> dist_y_pos(0, std_pos[1]);
+	std::normal_distribution<double> dist_theta_pos(0, std_pos[2]);
 	//Predict the new x, y, and theta for the next measurement 
 	for (int i=0; i<num_particles;i++){
 		//If yaw rate is too small, keep theta, and calculate w/o yaw rate
@@ -70,12 +70,12 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
                                      vector<LandmarkObs>& observations) {
 	
 /**Update Step: Association*/
-	for (int i=0; i<observations.size();i++){
+	for (unsigned int i=0; i<observations.size();i++) {
 		//look at the distance to each landmark
 		int ident = -1;
-		for (int j=0; j<predicted.size(); j++){
-			double min = 100000000;
-			double distance = helper_functions::dist(observations[i].x,observations[i].y,predicted[j].x,predicted[j].y);
+		double min = 100000000;
+		for (unsigned int j=0; j<predicted.size(); j++) {
+			double distance = dist(observations[i].x,observations[i].y,predicted[j].x,predicted[j].y);
 			//Keep track of the shortest distance and its landmark ID
 			if (distance < min){
 				min = distance; 
@@ -92,30 +92,29 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   
 /**Update Step*/
   
-	for (int i=0;i<num_particles;i++)){
+	for (int i=0;i<num_particles;i++){
 		//create the list of landmarks the particle should see within range of the sensor
 		vector<LandmarkObs> predicted;
-		for (int k=0; k<map_landmarks.landmark_list.size(),k++){
+		for (unsigned int k=0; k<map_landmarks.landmark_list.size();k++){
 			//calculate the 2D distance between the observation and the landmark
-			double distance = helper_functions::dist(map_landmarks.landmark_list[k].x, map_landmarks.landmark_list[k].y, particles[i].x, particles[i].y);
+			double distance = dist(map_landmarks.landmark_list[k].x_f, map_landmarks.landmark_list[k].y_f, particles[i].x, particles[i].y);
 			//if landmark is in range of particle, store it
 			if (distance <= sensor_range){
-				predicted.push_back(map_landmarks.landmark_list[k]);
+				predicted.push_back(LandmarkObs{map_landmarks.landmark_list[k].id_i, map_landmarks.landmark_list[k].x_f, map_landmarks.landmark_list[k].y_f});
 			}
 		}
       
 		//Complete the transformation from observed distances to map coordinate system
 		vector<LandmarkObs> trans_ob;	//vector of observations for each particle
-		for (int j=0; j<observations.size();j++){
+		for (unsigned int j=0; j<observations.size();j++){
 			LandmarkObs observed;
-			double delta_theta = particles[i].theta;
 			observed.x = particles[i].x + (cos(particles[i].theta)*observations[j].x) - (sin(particles[i].theta) * observations[j].y);
 			observed.y = particles[i].y + (sin(particles[i].theta)*observations[j].x) + (cos(particles[i].theta)* observations[j].y);
 			trans_ob.push_back(observed); //fill the vector using the coordinate transformation-applied observations
 		}	
   	
 		//Get the landmark ID of the landmark closest to each observation
-		dataAssociation(predictions, trans_ob);
+		dataAssociation(predicted, trans_ob);
       
 		//FINALLY: Apply multi-variate gaussian distribution
 		//standard deviations of the landmarks
@@ -123,15 +122,16 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		double std_Ly = std_landmark[1];
 		particles[i].weight = 1.0;
 		//get the position for each observation
-		for (j=0; j<trans_ob.size();j++){
+		for (unsigned int j=0; j<trans_ob.size();j++){
+			double obs_x, obs_y, pred_x, pred_y; 
 			obs_x = trans_ob[j].x;
 			obs_y = trans_ob[j].y;
-			landmark_id = trans_ob[j].id;
+			int landmark_id = trans_ob[j].id;
 			//get the position for the associated landmark
-			for (k=0; k<predictions.size();k++){
-				if (predictions[k].id = landmark_id){
-					pred_x = predictions[k].x;
-					pred_y = prediction[k].y;
+			for (unsigned int k=0; k<predicted.size();k++){
+				if (predicted[k].id == landmark_id){
+					pred_x = predicted[k].x;
+					pred_y = predicted[k].y;
 				}
 			}
 			//Multivariate Gaussian probability for that observation given the landmark distance from position
@@ -146,7 +146,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 void ParticleFilter::resample() {
 
 /**Resampling Step*/
-	std::discrete_distribution distr;
 	//Get weights and max weight.
 	vector<double> weights;
 	double w_max = 0.0;
@@ -157,19 +156,15 @@ void ParticleFilter::resample() {
 			w_max = particles[i].weight;
 		}
 	}
-
-	uniform_real_distribution<double> distDouble(0.0, max_w);
-	uniform_int_distribution<int> distInt(0, num_particles - 1);
-	int index = distInt(gen);
-	double beta = 0.0;
-	vector<Particle> resampled[];
+	//create a discrete distribution of particle weights
+	std::random_device rd;
+    std::mt19937 gen(rd());
+	std::discrete_distribution<> distr(weights.begin(),weights.end());
+	vector<Particle> resampled;
+	//resample from this discrete distribution
 	for(int i = 0; i < num_particles; i++) {
-		beta += distDouble(gen) * 2.0;
-		while(beta > weights[index]) {
-			beta -= weights[index];
-			index = (index + 1) % num_particles;
-		}
-		resampled.push_back(particles[index]);
+		int p = distr(gen);
+		resampled.push_back(particles[p]);
 	}
 	particles = resampled;
 }
