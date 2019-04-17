@@ -146,15 +146,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 void ParticleFilter::resample() {
 
 /**Resampling Step*/
-	//Get weights and max weight.
+	//Get weights
 	vector<double> weights;
-	double w_max = 0.0;
 	//append the particles weights to a vector "weights" for resampling
 	for(int i=0; i<num_particles; i++){
 		weights.push_back(particles[i].weight);
-		if(particles[i].weight > w_max) {
-			w_max = particles[i].weight;
-		}
 	}
 	//create a discrete distribution of particle weights
 	std::random_device rd;
